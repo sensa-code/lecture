@@ -21,6 +21,7 @@ const program = new Command()
   .option('--start-from <lessonId>', 'Resume from specific lesson')
   .option('--dry-run', 'Simulate without API calls')
   .option('--output <dir>', 'Output directory', 'output/lessons')
+  .option('--verbose', 'Show detailed error stacks')
   .parse();
 
 const opts = program.opts();
@@ -64,7 +65,11 @@ async function main() {
   // Resume support
   if (opts.startFrom) {
     const startIdx = lessons.findIndex(l => l.lesson_id === opts.startFrom);
-    if (startIdx === -1) throw new Error(`Lesson ${opts.startFrom} not found`);
+    if (startIdx === -1) {
+      const available = lessons.slice(0, 10).map(l => l.lesson_id).join(', ');
+      const suffix = lessons.length > 10 ? ` (and ${lessons.length - 10} more)` : '';
+      throw new Error(`Lesson "${opts.startFrom}" not found. Available: ${available}${suffix}`);
+    }
     lessons = lessons.slice(startIdx);
     console.log(`   Resuming from ${opts.startFrom} (${lessons.length} remaining)`);
   }

@@ -24,18 +24,18 @@ export async function generateDialogue(
       const text = response.content[0].type === 'text' ? response.content[0].text : '';
       const parsed = safeParseJSON<CaseDialogue>(text);
       if (!parsed) {
-        throw new Error('JSON 解析失敗');
+        throw new Error('Failed to parse JSON response');
       }
       const validated = CaseDialogueSchema.parse(parsed);
 
-      console.log(`✅ 對話生成成功（第 ${attempt} 次嘗試）`);
-      console.log(`   對話輪數: ${validated.dialogue.length}, 場景: ${validated.scenario.setting.substring(0, 30)}...`);
+      console.log(`✅ Dialogue generated (attempt ${attempt})`);
+      console.log(`   Turns: ${validated.dialogue.length}, Scenario: ${validated.scenario.setting.substring(0, 30)}...`);
 
       return validated;
     } catch (error) {
-      console.error(`❌ 第 ${attempt} 次嘗試失敗:`, error instanceof Error ? error.message : error);
+      console.error(`❌ Attempt ${attempt} failed:`, error instanceof Error ? error.message : error);
       if (attempt === maxRetries) {
-        throw new Error(`對話生成失敗，已重試 ${maxRetries} 次: ${error}`);
+        throw new Error(`Dialogue generation failed after ${maxRetries} attempts: ${error}`);
       }
       await new Promise((r) => setTimeout(r, 2000));
     }

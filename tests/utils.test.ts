@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { validateEnv, CostTracker, CircuitBreaker, progressBar, sleep } from '../scripts/utils.js';
+import { validateEnv, CostTracker, CircuitBreaker, progressBar, sleep, parseNumericOption, handleError } from '../scripts/utils.js';
 
 // ============================================
 // validateEnv
@@ -190,6 +190,18 @@ describe('progressBar', () => {
     // Should contain block characters (█ and ░)
     expect(bar).toMatch(/[█░]/);
   });
+
+  it('should handle total=0 without NaN (N-6)', () => {
+    const bar = progressBar(0, 0);
+    expect(bar).toContain('no items');
+    expect(bar).not.toContain('NaN');
+  });
+
+  it('should handle total=0 with label', () => {
+    const bar = progressBar(0, 0, 'test');
+    expect(bar).toContain('no items');
+    expect(bar).toContain('test');
+  });
 });
 
 // ============================================
@@ -201,5 +213,116 @@ describe('sleep', () => {
     await sleep(50);
     const elapsed = Date.now() - start;
     expect(elapsed).toBeGreaterThanOrEqual(40); // Allow some tolerance
+  });
+});
+
+// ============================================
+// parseNumericOption (N-5: new tests for Round 1 functions)
+// ============================================
+describe('parseNumericOption', () => {
+  // We need to mock process.exit since it calls it on error
+  let mockExit: ReturnType<typeof vi.fn>;
+  let mockConsoleError: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    mockExit = vi.spyOn(process, 'exit').mockImplementation((() => {
+      throw new Error('process.exit called');
+    }) as never);
+    mockConsoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    mockExit.mockRestore();
+    mockConsoleError.mockRestore();
+  });
+
+  it('should parse valid number', () => {
+    expect(parseNumericOption('5', 'budget')).toBe(5);
+  });
+
+  it('should parse decimal number', () => {
+    expect(parseNumericOption('3.14', 'budget')).toBeCloseTo(3.14);
+  });
+
+  it('should reject NaN (N-1 original fix)', () => {
+    expect(() => parseNumericOption('abc', 'budget')).toThrow('process.exit called');
+    expect(mockConsoleError).toHaveBeenCalledWith(expect.stringContaining('must be a finite number'));
+  });
+
+  it('should reject Infinity (N-1)', () => {
+    expect(() => parseNumericOption('Infinity', 'budget')).toThrow('process.exit called');
+    expect(mockConsoleError).toHaveBeenCalledWith(expect.stringContaining('must be a finite number'));
+  });
+
+  it('should reject -Infinity', () => {
+    expect(() => parseNumericOption('-Infinity', 'budget')).toThrow('process.exit called');
+    expect(mockConsoleError).toHaveBeenCalledWith(expect.stringContaining('must be a finite number'));
+  });
+
+  it('should reject empty string', () => {
+    expect(() => parseNumericOption('', 'budget')).toThrow('process.exit called');
+  });
+
+  it('should enforce min', () => {
+    expect(() => parseNumericOption('-1', 'budget', { min: 0.01 })).toThrow('process.exit called');
+    expect(mockConsoleError).toHaveBeenCalledWith(expect.stringContaining('must be >= 0.01'));
+  });
+
+  it('should allow value at min boundary', () => {
+    expect(parseNumericOption('0.01', 'budget', { min: 0.01 })).toBe(0.01);
+  });
+
+  it('should warn on high value (max)', () => {
+    const result = parseNumericOption('200', 'budget', { max: 100 });
+    expect(result).toBe(200); // still returns the value
+    expect(mockConsoleError).toHaveBeenCalledWith(expect.stringContaining('very high'));
+  });
+
+  it('should enforce integer mode (N-4)', () => {
+    expect(() => parseNumericOption('2.7', 'concurrency', { integer: true })).toThrow('process.exit called');
+    expect(mockConsoleError).toHaveBeenCalledWith(expect.stringContaining('must be an integer'));
+  });
+
+  it('should accept integer in integer mode', () => {
+    expect(parseNumericOption('3', 'concurrency', { integer: true })).toBe(3);
+  });
+
+  it('should accept integer value "2.0" in integer mode', () => {
+    expect(parseNumericOption('2.0', 'concurrency', { integer: true })).toBe(2);
+  });
+});
+
+// ============================================
+// handleError (N-5: test the error handler)
+// ============================================
+describe('handleError', () => {
+  let mockExit: ReturnType<typeof vi.fn>;
+  let mockConsoleError: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    mockExit = vi.spyOn(process, 'exit').mockImplementation((() => {
+      throw new Error('process.exit called');
+    }) as never);
+    mockConsoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    mockExit.mockRestore();
+    mockConsoleError.mockRestore();
+  });
+
+  it('should display Error message cleanly', () => {
+    expect(() => handleError(new Error('Something failed'))).toThrow('process.exit called');
+    expect(mockConsoleError).toHaveBeenCalledWith(expect.stringContaining('Something failed'));
+  });
+
+  it('should handle non-Error objects', () => {
+    expect(() => handleError('string error')).toThrow('process.exit called');
+    expect(mockConsoleError).toHaveBeenCalledWith(expect.stringContaining('Unknown error'), 'string error');
+  });
+
+  it('should exit with code 1', () => {
+    try { handleError(new Error('test')); } catch { /* expected */ }
+    expect(mockExit).toHaveBeenCalledWith(1);
   });
 });

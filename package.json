@@ -9,6 +9,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
     "batch:scripts": "tsx scripts/batch-generate-scripts.ts",
     "batch:quality": "tsx scripts/batch-quality-check.ts",
     "batch:videos": "tsx scripts/batch-generate-videos.ts",

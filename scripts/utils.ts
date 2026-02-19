@@ -55,6 +55,7 @@ export class CostTracker {
 
 /** Simple progress bar */
 export function progressBar(current: number, total: number, label = ''): string {
+  if (total <= 0) return `[no items] ${label}`.trim();
   const width = 30;
   const filled = Math.round((current / total) * width);
   const empty = width - filled;
@@ -72,10 +73,18 @@ export function sleep(ms: number): Promise<void> {
  * Validate and parse a numeric CLI option.
  * Returns the parsed number or exits with error.
  */
-export function parseNumericOption(value: string, name: string, opts: { min?: number; max?: number } = {}): number {
+export function parseNumericOption(
+  value: string,
+  name: string,
+  opts: { min?: number; max?: number; integer?: boolean } = {}
+): number {
   const num = parseFloat(value);
-  if (isNaN(num)) {
-    console.error(`❌ Error: --${name} must be a number, got '${value}'`);
+  if (isNaN(num) || !isFinite(num)) {
+    console.error(`❌ Error: --${name} must be a finite number, got '${value}'`);
+    process.exit(1);
+  }
+  if (opts.integer && !Number.isInteger(num)) {
+    console.error(`❌ Error: --${name} must be an integer, got ${num}`);
     process.exit(1);
   }
   if (opts.min !== undefined && num < opts.min) {

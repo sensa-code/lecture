@@ -21,44 +21,24 @@ const program = new Command()
   .option('--lessons-dir <dir>', 'Lessons directory', 'output/lessons')
   .option('--videos-dir <dir>', 'Video output directory', 'output/videos')
   .option('--dry-run', 'Simulate without API calls')
+  .option('--verbose', 'Show detailed error stacks')
   .parse();
 
 const opts = program.opts();
-
-/** Process lessons with concurrency control */
-async function withConcurrency<T>(
-  items: T[],
-  concurrency: number,
-  fn: (item: T, index: number) => Promise<void>
-): Promise<void> {
-  const executing: Promise<void>[] = [];
-
-  for (let i = 0; i < items.length; i++) {
-    const p = fn(items[i], i).then(() => {
-      executing.splice(executing.indexOf(p), 1);
-    });
-    executing.push(p);
-
-    if (executing.length >= concurrency) {
-      await Promise.race(executing);
-    }
-  }
-
-  await Promise.all(executing);
-}
 
 async function main() {
   if (!opts.dryRun) {
     validateEnv(['HEYGEN_API_KEY', 'ELEVENLABS_API_KEY']);
   }
 
-  const concurrencyNum = parseNumericOption(opts.concurrency, 'concurrency', { min: 1 });
+  const concurrencyNum = parseNumericOption(opts.concurrency, 'concurrency', { min: 1, integer: true });
   const budgetNum = parseNumericOption(opts.budget, 'budget', { min: 0.01, max: 500 });
 
   console.log('🎬 Batch Video Generator');
   console.log(`   Course: ${opts.course}`);
   console.log(`   Concurrency: ${concurrencyNum}`);
   console.log(`   Budget: $${budgetNum}`);
+  console.log(`   Dry run: ${opts.dryRun || false}`);
 
   const lessonsDir = opts.lessonsDir;
   const videosDir = opts.videosDir;
@@ -85,6 +65,11 @@ async function main() {
   for (let i = 0; i < files.length; i++) {
     const file = files[i];
     console.log(`\n${progressBar(i + 1, files.length, file)}`);
+
+    if (costTracker.isOverBudget) {
+      console.log(`⚠️ Budget cap reached: ${costTracker}`);
+      break;
+    }
 
     if (circuitBreaker.isOpen) {
       console.log(`🔴 Circuit breaker open. Stopping.`);
@@ -118,16 +103,23 @@ async function main() {
 
     if (opts.dryRun) {
       const cost = estimateCost(lessonInput);
+      costTracker.add(cost.totalEstimatedCost);
       console.log(`  [DRY RUN] Would generate video for ${lesson.lesson_id}`);
       console.log(`    HeyGen segments: ${cost.heygenSegments}, ElevenLabs chars: ${cost.elevenLabsCharacters}`);
+      console.log(`    Estimated cost: $${cost.totalEstimatedCost.toFixed(4)}`);
       completed++;
       continue;
     }
 
     try {
-      await processLesson(lessonInput, videosDir);
+      const result = await processLesson(lessonInput, videosDir);
+      costTracker.add(result.cost_usd);
       circuitBreaker.recordSuccess();
       completed++;
+      console.log(`  ✅ Video complete (cost: $${result.cost_usd.toFixed(4)}, running: ${costTracker})`);
+
+      // Rate limit between API calls
+      await sleep(2000);
     } catch (error) {
       console.error(`  ❌ Video generation failed: ${error instanceof Error ? error.message : error}`);
       circuitBreaker.recordFailure();
@@ -138,6 +130,7 @@ async function main() {
   console.log(`\n📊 Summary:`);
   console.log(`   Completed: ${completed}/${files.length}`);
   console.log(`   Failed: ${failed}`);
+  console.log(`   Cost: ${costTracker}`);
 }
 
 main().catch(handleError);

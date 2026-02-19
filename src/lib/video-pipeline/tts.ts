@@ -10,7 +10,7 @@ export async function generateSpeech(
   maxRetries = 3
 ): Promise<TTSWorkResult> {
   const apiKey = process.env.ELEVENLABS_API_KEY;
-  if (!apiKey) throw new Error('ELEVENLABS_API_KEY 未設定');
+  if (!apiKey) throw new Error('ELEVENLABS_API_KEY not set');
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {

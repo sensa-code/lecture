@@ -97,16 +97,16 @@ verdict 判斷標準：
       const text = response.content[0].type === 'text' ? response.content[0].text : '';
       const parsed = safeParseJSON<QualityReport>(text);
       if (!parsed) {
-        throw new Error('JSON 解析失敗');
+        throw new Error('Failed to parse JSON response');
       }
       const validated = QualityReportSchema.parse(parsed);
 
-      console.log(`✅ ${lesson.lesson_id} 品質檢查完成 — 分數: ${validated.overall_score}, verdict: ${validated.verdict}`);
+      console.log(`✅ ${lesson.lesson_id} quality check done — score: ${validated.overall_score}, verdict: ${validated.verdict}`);
       return validated;
     } catch (error) {
-      console.error(`❌ ${lesson.lesson_id} 品質檢查第 ${attempt} 次失敗:`, error instanceof Error ? error.message : error);
+      console.error(`❌ ${lesson.lesson_id} quality check attempt ${attempt} failed:`, error instanceof Error ? error.message : error);
       if (attempt === maxRetries) {
-        throw new Error(`品質檢查失敗，已重試 ${maxRetries} 次: ${error}`);
+        throw new Error(`Quality check failed after ${maxRetries} attempts: ${error}`);
       }
       await new Promise((r) => setTimeout(r, 2000));
     }

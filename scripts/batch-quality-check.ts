@@ -22,6 +22,7 @@ const program = new Command()
   .option('--lessons-dir <dir>', 'Lessons directory', 'output/lessons')
   .option('--reports-dir <dir>', 'Reports output directory', 'output/reports')
   .option('--dry-run', 'Simulate without API calls')
+  .option('--verbose', 'Show detailed error stacks')
   .parse();
 
 const opts = program.opts();
@@ -32,7 +33,7 @@ async function main() {
   }
 
   const budgetNum = parseNumericOption(opts.budget, 'budget', { min: 0.01, max: 100 });
-  const sampleRateNum = parseNumericOption(opts.sampleRate, 'sample-rate', { min: 1 });
+  const sampleRateNum = parseNumericOption(opts.sampleRate, 'sample-rate', { min: 1, integer: true });
 
   console.log('🔍 Batch Quality Checker');
   console.log(`   Course: ${opts.course}`);

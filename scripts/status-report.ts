@@ -25,6 +25,7 @@ const program = new Command()
   .option('--videos-dir <dir>', 'Videos directory', 'output/videos')
   .option('--detailed', 'Show detailed per-lesson status')
   .option('--dry-run', 'Simulate mode')
+  .option('--verbose', 'Show detailed error stacks')
   .parse();
 
 const opts = program.opts();

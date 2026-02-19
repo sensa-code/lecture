@@ -1,7 +1,24 @@
 // HeyGen avatar video module (F-27: credit-based pricing)
+import { z } from 'zod';
 import type { HeyGenWorkResult } from './types.js';
 
 const HEYGEN_API_URL = 'https://api.heygen.com/v2';
+
+/** Zod schema for HeyGen create video response (P1-8: runtime validation) */
+const HeyGenCreateResponseSchema = z.object({
+  data: z.object({
+    video_id: z.string().min(1),
+  }),
+});
+
+/** Zod schema for HeyGen video status response (P1-8: runtime validation) */
+const HeyGenStatusResponseSchema = z.object({
+  data: z.object({
+    status: z.string(),
+    video_url: z.string().url().optional(),
+    error: z.string().optional(),
+  }),
+});
 
 export async function createAvatarVideo(
   scriptZh: string,
@@ -9,7 +26,7 @@ export async function createAvatarVideo(
   maxRetries = 3
 ): Promise<HeyGenWorkResult> {
   const apiKey = process.env.HEYGEN_API_KEY;
-  if (!apiKey) throw new Error('HEYGEN_API_KEY 未設定');
+  if (!apiKey) throw new Error('HEYGEN_API_KEY not set');
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
@@ -33,7 +50,8 @@ export async function createAvatarVideo(
         throw new Error(`HeyGen create error: ${createResponse.status}`);
       }
 
-      const createData = await createResponse.json() as { data: { video_id: string } };
+      const rawJson: unknown = await createResponse.json();
+      const createData = HeyGenCreateResponseSchema.parse(rawJson);
       const videoId = createData.data.video_id;
 
       console.log(`  HeyGen video created: ${videoId}`);
@@ -71,9 +89,8 @@ async function waitForCompletion(
       throw new Error(`HeyGen status error: ${statusResponse.status}`);
     }
 
-    const statusData = await statusResponse.json() as {
-      data: { status: string; video_url?: string; error?: string };
-    };
+    const rawJson: unknown = await statusResponse.json();
+    const statusData = HeyGenStatusResponseSchema.parse(rawJson);
 
     if (statusData.data.status === 'completed' && statusData.data.video_url) {
       const videoResponse = await fetch(statusData.data.video_url);

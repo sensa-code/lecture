@@ -60,18 +60,18 @@ export async function generateKnowledgeBase(
       const text = response.content[0].type === 'text' ? response.content[0].text : '';
       const parsed = safeParseJSON<KnowledgeBase>(text);
       if (!parsed) {
-        throw new Error('JSON 解析失敗');
+        throw new Error('Failed to parse JSON response');
       }
       const validated = KnowledgeBaseSchema.parse(parsed);
 
-      console.log(`✅ 知識深挖完成（第 ${attempt} 次嘗試）`);
-      console.log(`   面向數: ${validated.dimensions.length}, 參考文獻: ${validated.references.length}`);
+      console.log(`✅ Knowledge deep dive complete (attempt ${attempt})`);
+      console.log(`   Dimensions: ${validated.dimensions.length}, References: ${validated.references.length}`);
 
       return validated;
     } catch (error) {
-      console.error(`❌ 第 ${attempt} 次嘗試失敗:`, error instanceof Error ? error.message : error);
+      console.error(`❌ Attempt ${attempt} failed:`, error instanceof Error ? error.message : error);
       if (attempt === maxRetries) {
-        throw new Error(`知識深挖失敗，已重試 ${maxRetries} 次: ${error}`);
+        throw new Error(`Knowledge deep dive failed after ${maxRetries} attempts: ${error}`);
       }
       await new Promise((r) => setTimeout(r, 2000));
     }

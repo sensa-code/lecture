@@ -48,7 +48,7 @@ export async function generateLessonScript(
       const text = response.content[0].type === 'text' ? response.content[0].text : '';
       const parsed = safeParseJSON<LessonScript>(text);
       if (!parsed) {
-        throw new Error('JSON 解析失敗');
+        throw new Error('Failed to parse JSON response');
       }
       const validated = LessonScriptSchema.parse(parsed);
 
@@ -56,13 +56,13 @@ export async function generateLessonScript(
       const totalDuration = validated.segments.reduce((sum, s) => sum + s.duration_seconds, 0);
       const targetSeconds = info.duration_target_minutes * 60;
       if (Math.abs(totalDuration - targetSeconds) > targetSeconds * 0.3) {
-        console.warn(`⚠️ ${info.lesson_id} 時長偏差超過 30%: ${totalDuration}s vs 目標 ${targetSeconds}s`);
+        console.warn(`⚠️ ${info.lesson_id} duration deviation >30%: ${totalDuration}s vs target ${targetSeconds}s`);
       }
 
-      console.log(`✅ ${info.lesson_id} 講稿生成成功（${validated.segments.length} segments, ${totalDuration}s）`);
+      console.log(`✅ ${info.lesson_id} script generated (${validated.segments.length} segments, ${totalDuration}s)`);
       return validated;
     } catch (error) {
-      console.error(`❌ ${info.lesson_id} 第 ${attempt} 次失敗:`, error instanceof Error ? error.message : error);
+      console.error(`❌ ${info.lesson_id} attempt ${attempt} failed:`, error instanceof Error ? error.message : error);
       if (attempt === maxRetries) throw error;
       await new Promise((r) => setTimeout(r, 2000));
     }
