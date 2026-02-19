@@ -19,7 +19,15 @@
       "Bash(ls:*)",
       "Bash(echo:*)",
       "Bash(npm audit:*)",
-      "Bash(npm run:*)"
+      "Bash(npm run:*)",
+      "Bash(wc:*)",
+      "Bash(npm start)",
+      "Bash(git rm:*)",
+      "Bash(npm test:*)",
+      "Bash(for f in src/lib/*.ts src/lib/video-pipeline/*.ts scripts/*.ts src/types/*.ts src/schemas/*.ts)",
+      "Bash(do wc -l \"$f\")",
+      "Bash(done)",
+      "Bash(for:*)"
     ]
   }
 }
