@@ -16,7 +16,10 @@
       "Bash(git config:*)",
       "Bash(node -e:*)",
       "Bash(node --import tsx/esm:*)",
-      "Bash(ls:*)"
+      "Bash(ls:*)",
+      "Bash(echo:*)",
+      "Bash(npm audit:*)",
+      "Bash(npm run:*)"
     ]
   }
 }
