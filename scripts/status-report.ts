@@ -5,6 +5,7 @@ import { readFile, readdir } from 'fs/promises';
 import { join } from 'path';
 import dotenv from 'dotenv';
 import { safeParseJSON } from '../src/lib/safe-json.js';
+import { handleError } from './utils.js';
 
 dotenv.config();
 
@@ -16,6 +17,7 @@ interface QualityReport {
 
 const program = new Command()
   .name('status-report')
+  .version('3.0.0')
   .description('Show course generation progress and status')
   .requiredOption('--course <id>', 'Course ID')
   .option('--lessons-dir <dir>', 'Lessons directory', 'output/lessons')
@@ -107,4 +109,4 @@ async function main() {
   }
 }
 
-main().catch(console.error);
+main().catch(handleError);

@@ -1,19 +1,20 @@
 #!/usr/bin/env npx tsx
 // Batch lesson script generation (SSOT imports from lib/)
 import { Command } from 'commander';
-import { readFile, writeFile, mkdir } from 'fs/promises';
+import { writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
 import dotenv from 'dotenv';
 import { SyllabusSchema } from '../src/schemas/syllabus.js';
 import { extractLessonsFromSyllabus, generateLessonScript } from '../src/lib/generate-lesson.js';
 import { safeParseJSON } from '../src/lib/safe-json.js';
-import { validateEnv, CostTracker, CircuitBreaker, progressBar, sleep } from './utils.js';
+import { validateEnv, CostTracker, CircuitBreaker, progressBar, sleep, parseNumericOption, readFileSafe, handleError } from './utils.js';
 import type { Syllabus } from '../src/types/syllabus.js';
 
 dotenv.config();
 
 const program = new Command()
   .name('batch-generate-scripts')
+  .version('3.0.0')
   .description('Batch generate lesson scripts from syllabus')
   .requiredOption('--syllabus <path>', 'Path to syllabus.json')
   .option('--budget <usd>', 'Budget cap in USD', '5')
@@ -29,13 +30,15 @@ async function main() {
     validateEnv(['ANTHROPIC_API_KEY']);
   }
 
+  const budgetNum = parseNumericOption(opts.budget, 'budget', { min: 0.01, max: 100 });
+
   console.log('📚 Batch Lesson Script Generator');
   console.log(`   Syllabus: ${opts.syllabus}`);
-  console.log(`   Budget: $${opts.budget}`);
+  console.log(`   Budget: $${budgetNum}`);
   console.log(`   Dry run: ${opts.dryRun || false}`);
 
   // Load and validate syllabus
-  const syllabusRaw = await readFile(opts.syllabus, 'utf-8');
+  const syllabusRaw = await readFileSafe(opts.syllabus, 'Syllabus file');
   const syllabusData = safeParseJSON<Syllabus>(syllabusRaw);
   if (!syllabusData) throw new Error('Failed to parse syllabus JSON');
 
@@ -66,7 +69,7 @@ async function main() {
     console.log(`   Resuming from ${opts.startFrom} (${lessons.length} remaining)`);
   }
 
-  const costTracker = new CostTracker(parseFloat(opts.budget));
+  const costTracker = new CostTracker(budgetNum);
   const circuitBreaker = new CircuitBreaker(3);
   const outputDir = opts.output;
   await mkdir(outputDir, { recursive: true });
@@ -124,4 +127,4 @@ async function main() {
   console.log(`   Cost: ${costTracker}`);
 }
 
-main().catch(console.error);
+main().catch(handleError);

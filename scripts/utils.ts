@@ -1,6 +1,7 @@
 // Shared utilities for batch scripts
 import { createClient } from '@supabase/supabase-js';
 import Anthropic from '@anthropic-ai/sdk';
+import { readFile } from 'fs/promises';
 
 /** Validate required environment variables */
 export function validateEnv(required: string[]): void {
@@ -65,6 +66,57 @@ export function progressBar(current: number, total: number, label = ''): string 
 /** Sleep helper */
 export function sleep(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+/**
+ * Validate and parse a numeric CLI option.
+ * Returns the parsed number or exits with error.
+ */
+export function parseNumericOption(value: string, name: string, opts: { min?: number; max?: number } = {}): number {
+  const num = parseFloat(value);
+  if (isNaN(num)) {
+    console.error(`❌ Error: --${name} must be a number, got '${value}'`);
+    process.exit(1);
+  }
+  if (opts.min !== undefined && num < opts.min) {
+    console.error(`❌ Error: --${name} must be >= ${opts.min}, got ${num}`);
+    process.exit(1);
+  }
+  if (opts.max !== undefined && num > opts.max) {
+    console.error(`⚠️ Warning: --${name} is very high (${num}). Max recommended: ${opts.max}`);
+  }
+  return num;
+}
+
+/**
+ * Safe file reader with user-friendly error.
+ */
+export async function readFileSafe(path: string, description: string): Promise<string> {
+  try {
+    return await readFile(path, 'utf-8');
+  } catch (err) {
+    if (err && typeof err === 'object' && 'code' in err && err.code === 'ENOENT') {
+      console.error(`❌ Error: ${description} not found: ${path}`);
+      process.exit(1);
+    }
+    throw err;
+  }
+}
+
+/**
+ * Top-level error handler for CLI scripts.
+ * Shows clean message instead of raw stack trace.
+ */
+export function handleError(error: unknown): never {
+  if (error instanceof Error) {
+    console.error(`\n❌ ${error.message}`);
+    if (process.env.VERBOSE === '1' || process.argv.includes('--verbose')) {
+      console.error(error.stack);
+    }
+  } else {
+    console.error(`\n❌ Unknown error:`, error);
+  }
+  process.exit(1);
 }
 
 /** Circuit breaker: tracks consecutive failures */

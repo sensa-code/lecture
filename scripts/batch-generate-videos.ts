@@ -6,16 +6,18 @@ import { join } from 'path';
 import dotenv from 'dotenv';
 import { processLesson, estimateCost } from '../src/lib/video-pipeline/index.js';
 import { safeParseJSON } from '../src/lib/safe-json.js';
-import { validateEnv, CostTracker, CircuitBreaker, progressBar, sleep } from './utils.js';
+import { validateEnv, CostTracker, CircuitBreaker, progressBar, sleep, parseNumericOption, handleError } from './utils.js';
 import type { LessonScript } from '../src/types/lesson.js';
 
 dotenv.config();
 
 const program = new Command()
   .name('batch-generate-videos')
+  .version('3.0.0')
   .description('Batch generate videos from approved lesson scripts')
   .requiredOption('--course <id>', 'Course ID')
   .option('--concurrency <n>', 'Max concurrent video jobs', '2')
+  .option('--budget <usd>', 'Budget cap in USD (HeyGen + ElevenLabs)', '50')
   .option('--lessons-dir <dir>', 'Lessons directory', 'output/lessons')
   .option('--videos-dir <dir>', 'Video output directory', 'output/videos')
   .option('--dry-run', 'Simulate without API calls')
@@ -50,9 +52,13 @@ async function main() {
     validateEnv(['HEYGEN_API_KEY', 'ELEVENLABS_API_KEY']);
   }
 
+  const concurrencyNum = parseNumericOption(opts.concurrency, 'concurrency', { min: 1 });
+  const budgetNum = parseNumericOption(opts.budget, 'budget', { min: 0.01, max: 500 });
+
   console.log('🎬 Batch Video Generator');
   console.log(`   Course: ${opts.course}`);
-  console.log(`   Concurrency: ${opts.concurrency}`);
+  console.log(`   Concurrency: ${concurrencyNum}`);
+  console.log(`   Budget: $${budgetNum}`);
 
   const lessonsDir = opts.lessonsDir;
   const videosDir = opts.videosDir;
@@ -70,9 +76,8 @@ async function main() {
     return;
   }
 
-  const costTracker = new CostTracker(Infinity); // Videos use credits, not API cost
+  const costTracker = new CostTracker(budgetNum);
   const circuitBreaker = new CircuitBreaker(3);
-  const concurrency = parseInt(opts.concurrency);
 
   let completed = 0;
   let failed = 0;
@@ -135,4 +140,4 @@ async function main() {
   console.log(`   Failed: ${failed}`);
 }
 
-main().catch(console.error);
+main().catch(handleError);

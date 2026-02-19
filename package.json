@@ -1,15 +1,14 @@
 {
   "name": "vet-course-generator",
   "version": "3.0.0",
-  "description": "AI 獸醫課程生成系統 — 將獸醫專業知識通過 AI 自動化流水線轉換為線上課程影片",
+  "description": "AI-powered veterinary course generation pipeline — converts vet expertise into online video courses",
   "type": "module",
   "scripts": {
+    "start": "tsx scripts/status-report.ts --help",
     "build": "tsc",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "generate:knowledge": "tsx scripts/generate-knowledge.ts",
-    "generate:syllabus": "tsx scripts/generate-syllabus.ts",
     "batch:scripts": "tsx scripts/batch-generate-scripts.ts",
     "batch:quality": "tsx scripts/batch-quality-check.ts",
     "batch:videos": "tsx scripts/batch-generate-videos.ts",

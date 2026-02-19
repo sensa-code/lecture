@@ -7,13 +7,14 @@ import dotenv from 'dotenv';
 import { checkQuality } from '../src/lib/check-quality.js';
 import { qualityCheckWithSampling } from '../src/lib/auto-fix.js';
 import { safeParseJSON } from '../src/lib/safe-json.js';
-import { validateEnv, CostTracker, CircuitBreaker, progressBar, sleep } from './utils.js';
+import { validateEnv, CostTracker, CircuitBreaker, progressBar, sleep, parseNumericOption, handleError } from './utils.js';
 import type { LessonScript } from '../src/types/lesson.js';
 
 dotenv.config();
 
 const program = new Command()
   .name('batch-quality-check')
+  .version('3.0.0')
   .description('Batch quality check with sampling and auto-fix')
   .requiredOption('--course <id>', 'Course ID')
   .option('--budget <usd>', 'Budget cap in USD', '3')
@@ -30,10 +31,13 @@ async function main() {
     validateEnv(['ANTHROPIC_API_KEY']);
   }
 
+  const budgetNum = parseNumericOption(opts.budget, 'budget', { min: 0.01, max: 100 });
+  const sampleRateNum = parseNumericOption(opts.sampleRate, 'sample-rate', { min: 1 });
+
   console.log('🔍 Batch Quality Checker');
   console.log(`   Course: ${opts.course}`);
-  console.log(`   Budget: $${opts.budget}`);
-  console.log(`   Sample rate: every ${opts.sampleRate} lessons`);
+  console.log(`   Budget: $${budgetNum}`);
+  console.log(`   Sample rate: every ${sampleRateNum} lessons`);
 
   const lessonsDir = opts.lessonsDir;
   const reportsDir = opts.reportsDir;
@@ -53,9 +57,8 @@ async function main() {
     return;
   }
 
-  const costTracker = new CostTracker(parseFloat(opts.budget));
+  const costTracker = new CostTracker(budgetNum);
   const circuitBreaker = new CircuitBreaker(3);
-  const sampleRate = parseInt(opts.sampleRate);
 
   let approved = 0;
   let revisionNeeded = 0;
@@ -84,7 +87,7 @@ async function main() {
     }
 
     if (opts.dryRun) {
-      const willSample = i % sampleRate === 0;
+      const willSample = i % sampleRateNum === 0;
       console.log(`  [DRY RUN] Would check ${lesson.lesson_id}${willSample ? ' (SAMPLING)' : ''}`);
       approved++;
       continue;
@@ -92,7 +95,7 @@ async function main() {
 
     try {
       const result = await qualityCheckWithSampling(
-        lesson, i, checkQuality, { sampleRate }
+        lesson, i, checkQuality, { sampleRate: sampleRateNum }
       );
 
       const reportPath = join(reportsDir, `${lesson.lesson_id}-report.json`);
@@ -131,4 +134,4 @@ async function main() {
   console.log(`   Cost: ${costTracker}`);
 }
 
-main().catch(console.error);
+main().catch(handleError);

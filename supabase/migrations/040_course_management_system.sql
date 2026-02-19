@@ -175,6 +175,7 @@ $$ LANGUAGE plpgsql;
 -- F-15: Owner-based RLS policies
 ALTER TABLE courses ENABLE ROW LEVEL SECURITY;
 ALTER TABLE lessons ENABLE ROW LEVEL SECURITY;
+ALTER TABLE lesson_versions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE video_jobs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE batch_jobs ENABLE ROW LEVEL SECURITY;
 
@@ -182,6 +183,8 @@ ALTER TABLE batch_jobs ENABLE ROW LEVEL SECURITY;
 CREATE POLICY service_all_courses ON courses FOR ALL
   USING (auth.role() = 'service_role');
 CREATE POLICY service_all_lessons ON lessons FOR ALL
+  USING (auth.role() = 'service_role');
+CREATE POLICY service_all_lesson_versions ON lesson_versions FOR ALL
   USING (auth.role() = 'service_role');
 CREATE POLICY service_all_video_jobs ON video_jobs FOR ALL
   USING (auth.role() = 'service_role');
@@ -193,6 +196,8 @@ CREATE POLICY owner_courses ON courses FOR ALL
   USING (created_by = auth.uid());
 CREATE POLICY owner_lessons ON lessons FOR ALL
   USING (created_by = auth.uid());
+CREATE POLICY owner_lesson_versions ON lesson_versions FOR ALL
+  USING (course_id IN (SELECT id FROM courses WHERE created_by = auth.uid()));
 CREATE POLICY owner_video_jobs ON video_jobs FOR ALL
   USING (created_by = auth.uid());
 CREATE POLICY owner_batch_jobs ON batch_jobs FOR ALL
