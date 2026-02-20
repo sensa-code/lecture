@@ -73,8 +73,9 @@ export async function generateLessonScript(
 /**
  * Extract all lesson info from a syllabus for batch processing.
  * ⚠️ SSOT: 07 batch script MUST import this function (F-2).
+ * @param courseId - Optional course ID to attach to each lesson (avoids hardcoding)
  */
-export function extractLessonsFromSyllabus(syllabus: Syllabus): LessonInfo[] {
+export function extractLessonsFromSyllabus(syllabus: Syllabus, courseId?: string): LessonInfo[] {
   return syllabus.chapters.flatMap((ch) =>
     ch.lessons.map((lesson) => ({
       lesson_id: lesson.lesson_id,
@@ -84,6 +85,7 @@ export function extractLessonsFromSyllabus(syllabus: Syllabus): LessonInfo[] {
       duration_target_minutes: lesson.duration_target_minutes,
       case_scenario: lesson.case_scenario,
       chapter_id: ch.chapter_id,
+      course_id: courseId,
     }))
   );
 }

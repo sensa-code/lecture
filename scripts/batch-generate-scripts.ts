@@ -7,7 +7,7 @@ import dotenv from 'dotenv';
 import { SyllabusSchema } from '../src/schemas/syllabus.js';
 import { extractLessonsFromSyllabus, generateLessonScript } from '../src/lib/generate-lesson.js';
 import { safeParseJSON } from '../src/lib/safe-json.js';
-import { validateEnv, CostTracker, CircuitBreaker, progressBar, sleep, parseNumericOption, readFileSafe, handleError } from './utils.js';
+import { validateEnv, CostTracker, CircuitBreaker, progressBar, sleep, parseNumericOption, readFileSafe, handleError, setupGracefulShutdown } from './utils.js';
 import type { Syllabus } from '../src/types/syllabus.js';
 
 dotenv.config();
@@ -17,6 +17,7 @@ const program = new Command()
   .version('3.0.0')
   .description('Batch generate lesson scripts from syllabus')
   .requiredOption('--syllabus <path>', 'Path to syllabus.json')
+  .option('--course <id>', 'Course ID (used in generated scripts)')
   .option('--budget <usd>', 'Budget cap in USD', '5')
   .option('--start-from <lessonId>', 'Resume from specific lesson')
   .option('--dry-run', 'Simulate without API calls')
@@ -58,8 +59,8 @@ async function main() {
   }
   const syllabus = parseResult.data;
 
-  // Extract lessons (SSOT)
-  const allLessons = extractLessonsFromSyllabus(syllabus);
+  // Extract lessons (SSOT) — pass course_id if provided
+  const allLessons = extractLessonsFromSyllabus(syllabus, opts.course);
   let lessons = allLessons;
 
   // Resume support
@@ -81,6 +82,10 @@ async function main() {
 
   let completed = 0;
   let failed = 0;
+
+  setupGracefulShutdown(() =>
+    `   Completed: ${completed}/${lessons.length}, Failed: ${failed}, Cost: ${costTracker}`
+  );
 
   for (let i = 0; i < lessons.length; i++) {
     const lesson = lessons[i];

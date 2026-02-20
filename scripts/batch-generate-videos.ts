@@ -6,7 +6,7 @@ import { join } from 'path';
 import dotenv from 'dotenv';
 import { processLesson, estimateCost } from '../src/lib/video-pipeline/index.js';
 import { safeParseJSON } from '../src/lib/safe-json.js';
-import { validateEnv, CostTracker, CircuitBreaker, progressBar, sleep, parseNumericOption, handleError } from './utils.js';
+import { validateEnv, CostTracker, CircuitBreaker, progressBar, sleep, parseNumericOption, handleError, setupGracefulShutdown } from './utils.js';
 import type { LessonScript } from '../src/types/lesson.js';
 
 dotenv.config();
@@ -20,6 +20,7 @@ const program = new Command()
   .option('--budget <usd>', 'Budget cap in USD (HeyGen + ElevenLabs)', '50')
   .option('--lessons-dir <dir>', 'Lessons directory', 'output/lessons')
   .option('--videos-dir <dir>', 'Video output directory', 'output/videos')
+  .option('--start-from <lessonId>', 'Resume from specific lesson file')
   .option('--dry-run', 'Simulate without API calls')
   .option('--verbose', 'Show detailed error stacks')
   .parse();
@@ -56,11 +57,26 @@ async function main() {
     return;
   }
 
+  // Resume support
+  if (opts.startFrom) {
+    const startIdx = files.findIndex(f => f.includes(opts.startFrom));
+    if (startIdx === -1) {
+      const available = files.slice(0, 10).map(f => f.replace('.json', '')).join(', ');
+      throw new Error(`Lesson "${opts.startFrom}" not found. Available: ${available}`);
+    }
+    files = files.slice(startIdx);
+    console.log(`   Resuming from ${opts.startFrom} (${files.length} remaining)`);
+  }
+
   const costTracker = new CostTracker(budgetNum);
   const circuitBreaker = new CircuitBreaker(3);
 
   let completed = 0;
   let failed = 0;
+
+  setupGracefulShutdown(() =>
+    `   Completed: ${completed}/${files.length}, Failed: ${failed}, Cost: ${costTracker}`
+  );
 
   for (let i = 0; i < files.length; i++) {
     const file = files[i];

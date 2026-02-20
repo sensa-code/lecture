@@ -7,7 +7,7 @@ import dotenv from 'dotenv';
 import { checkQuality } from '../src/lib/check-quality.js';
 import { qualityCheckWithSampling } from '../src/lib/auto-fix.js';
 import { safeParseJSON } from '../src/lib/safe-json.js';
-import { validateEnv, CostTracker, CircuitBreaker, progressBar, sleep, parseNumericOption, handleError } from './utils.js';
+import { validateEnv, CostTracker, CircuitBreaker, progressBar, sleep, parseNumericOption, handleError, setupGracefulShutdown } from './utils.js';
 import type { LessonScript } from '../src/types/lesson.js';
 
 dotenv.config();
@@ -21,6 +21,7 @@ const program = new Command()
   .option('--sample-rate <n>', 'Force manual review every N lessons', '5')
   .option('--lessons-dir <dir>', 'Lessons directory', 'output/lessons')
   .option('--reports-dir <dir>', 'Reports output directory', 'output/reports')
+  .option('--start-from <lessonId>', 'Resume from specific lesson file')
   .option('--dry-run', 'Simulate without API calls')
   .option('--verbose', 'Show detailed error stacks')
   .parse();
@@ -58,6 +59,17 @@ async function main() {
     return;
   }
 
+  // Resume support
+  if (opts.startFrom) {
+    const startIdx = files.findIndex(f => f.includes(opts.startFrom));
+    if (startIdx === -1) {
+      const available = files.slice(0, 10).map(f => f.replace('.json', '')).join(', ');
+      throw new Error(`Lesson "${opts.startFrom}" not found. Available: ${available}`);
+    }
+    files = files.slice(startIdx);
+    console.log(`   Resuming from ${opts.startFrom} (${files.length} remaining)`);
+  }
+
   const costTracker = new CostTracker(budgetNum);
   const circuitBreaker = new CircuitBreaker(3);
 
@@ -65,6 +77,10 @@ async function main() {
   let revisionNeeded = 0;
   let rejected = 0;
   let manualReview = 0;
+
+  setupGracefulShutdown(() =>
+    `   Approved: ${approved}, Revision: ${revisionNeeded}, Rejected: ${rejected}, Manual: ${manualReview}, Cost: ${costTracker}`
+  );
 
   for (let i = 0; i < files.length; i++) {
     const file = files[i];

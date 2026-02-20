@@ -4,7 +4,7 @@
   "description": "AI-powered veterinary course generation pipeline — converts vet expertise into online video courses",
   "type": "module",
   "scripts": {
-    "start": "tsx scripts/status-report.ts --help",
+    "start": "echo 'Vet Course Generator v3.0 — Available commands:' && echo '  npm run batch:scripts -- --syllabus <path> [--budget 5] [--dry-run]' && echo '  npm run batch:quality -- --course <id> [--budget 3] [--dry-run]' && echo '  npm run batch:videos  -- --course <id> [--budget 50] [--dry-run]' && echo '  npm run status        -- --course <id> [--detailed]' && echo '  npm test' && echo '' && echo 'See README.md for full documentation.'",
     "build": "tsc",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",

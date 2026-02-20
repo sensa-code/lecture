@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { validateEnv, CostTracker, CircuitBreaker, progressBar, sleep, parseNumericOption, handleError } from '../scripts/utils.js';
+import { validateEnv, CostTracker, CircuitBreaker, progressBar, sleep, parseNumericOption, handleError, createSupabase } from '../scripts/utils.js';
 
 // ============================================
 // validateEnv
@@ -324,5 +324,57 @@ describe('handleError', () => {
   it('should exit with code 1', () => {
     try { handleError(new Error('test')); } catch { /* expected */ }
     expect(mockExit).toHaveBeenCalledWith(1);
+  });
+});
+
+// ============================================
+// createSupabase (P1-13: no more non-null assertions)
+// ============================================
+describe('createSupabase', () => {
+  const originalEnv = process.env;
+
+  beforeEach(() => {
+    process.env = { ...originalEnv };
+  });
+
+  afterEach(() => {
+    process.env = originalEnv;
+  });
+
+  it('should throw when SUPABASE_URL is missing', () => {
+    delete process.env.SUPABASE_URL;
+    delete process.env.SUPABASE_KEY;
+    delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+    expect(() => createSupabase()).toThrow('Missing SUPABASE_URL');
+  });
+
+  it('should throw when both SUPABASE_KEY and SERVICE_ROLE_KEY are missing', () => {
+    process.env.SUPABASE_URL = 'https://test.supabase.co';
+    delete process.env.SUPABASE_KEY;
+    delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+    expect(() => createSupabase()).toThrow('Missing SUPABASE_URL or SUPABASE_KEY');
+  });
+});
+
+// ============================================
+// CostTracker integer precision (P1-9 fix)
+// ============================================
+describe('CostTracker integer precision', () => {
+  it('should give exact result after many small adds (no float drift)', () => {
+    const tracker = new CostTracker(10);
+    for (let i = 0; i < 100; i++) {
+      tracker.add(0.08);
+    }
+    // With integer arithmetic, this should be exactly 8.0
+    expect(tracker.total).toBe(8);
+  });
+
+  it('should correctly detect budget boundary', () => {
+    const tracker = new CostTracker(0.80);
+    for (let i = 0; i < 10; i++) {
+      tracker.add(0.08);
+    }
+    // 10 × 0.08 = 0.80, should be at exactly budget
+    expect(tracker.isOverBudget).toBe(true);
   });
 });

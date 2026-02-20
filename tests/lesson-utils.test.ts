@@ -52,6 +52,19 @@ describe('buildLessonUserPrompt', () => {
     const prompt = buildLessonUserPrompt(sampleInfo);
     expect(prompt).toContain('JSON');
   });
+
+  it('uses course_id from info when provided (P0-3 fix)', () => {
+    const infoWithCourse = { ...sampleInfo, course_id: 'vet-derm-002' };
+    const prompt = buildLessonUserPrompt(infoWithCourse);
+    expect(prompt).toContain('vet-derm-002');
+    expect(prompt).not.toContain('vet-comm-001'); // No hardcoded value
+  });
+
+  it('uses "unknown-course" as default when course_id not provided', () => {
+    const prompt = buildLessonUserPrompt(sampleInfo);
+    expect(prompt).toContain('unknown-course');
+    expect(prompt).not.toContain('vet-comm-001'); // No hardcoded value
+  });
 });
 
 describe('estimateDuration', () => {
@@ -212,5 +225,20 @@ describe('extractLessonsFromSyllabus', () => {
     syllabus.chapters = [];
     const lessons = extractLessonsFromSyllabus(syllabus);
     expect(lessons).toHaveLength(0);
+  });
+
+  it('passes course_id to all lessons when provided', () => {
+    const lessons = extractLessonsFromSyllabus(makeSyllabus(), 'vet-derm-002');
+    expect(lessons).toHaveLength(5);
+    for (const lesson of lessons) {
+      expect(lesson.course_id).toBe('vet-derm-002');
+    }
+  });
+
+  it('leaves course_id undefined when not provided', () => {
+    const lessons = extractLessonsFromSyllabus(makeSyllabus());
+    for (const lesson of lessons) {
+      expect(lesson.course_id).toBeUndefined();
+    }
   });
 });

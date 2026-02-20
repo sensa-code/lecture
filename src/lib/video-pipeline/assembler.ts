@@ -1,11 +1,11 @@
 // Video assembler module — FFmpeg-based segment concatenation
-import { exec } from 'child_process';
+import { execFile } from 'child_process';
 import { writeFile, unlink, mkdir } from 'fs/promises';
 import { join } from 'path';
 import { promisify } from 'util';
 import { formatSRTTime } from './tts.js';
 
-const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
 
 export interface SegmentFile {
   segmentId: string;
@@ -35,11 +35,14 @@ export async function assembleLesson(
     .join('\n');
   await writeFile(concatListPath, concatContent, 'utf-8');
 
-  // Concatenate videos using FFmpeg
+  // Concatenate videos using FFmpeg (execFile to prevent command injection)
   try {
-    await execAsync(
-      `ffmpeg -y -f concat -safe 0 -i "${concatListPath}" -c copy "${videoPath}"`
-    );
+    await execFileAsync('ffmpeg', [
+      '-y', '-f', 'concat', '-safe', '0',
+      '-i', concatListPath,
+      '-c', 'copy',
+      videoPath,
+    ]);
     console.log(`  Video assembled: ${videoPath}`);
   } catch (error) {
     throw new Error(`FFmpeg assembly failed: ${error instanceof Error ? error.message : error}`);

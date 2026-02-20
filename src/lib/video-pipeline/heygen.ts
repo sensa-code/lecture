@@ -1,6 +1,7 @@
 // HeyGen avatar video module (F-27: credit-based pricing)
 import { z } from 'zod';
 import type { HeyGenWorkResult } from './types.js';
+import { estimateDuration } from '../build-lesson-prompt.js';
 
 const HEYGEN_API_URL = 'https://api.heygen.com/v2';
 
@@ -58,7 +59,7 @@ export async function createAvatarVideo(
 
       // Poll for completion
       const videoBuffer = await waitForCompletion(videoId, apiKey);
-      const videoDuration = estimateVideoDuration(scriptZh);
+      const videoDuration = estimateDuration(scriptZh);
       // HeyGen credit-based pricing (F-27) — cost varies by plan
       const cost = 0; // Credit-based, tracked separately
 
@@ -108,6 +109,3 @@ async function waitForCompletion(
   throw new Error(`HeyGen video timeout after ${timeoutMs / 1000}s`);
 }
 
-function estimateVideoDuration(text: string): number {
-  return Math.round(text.replace(/\s/g, '').length / 3.5);
-}

@@ -2,14 +2,14 @@
 import { writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
 import { promisify } from 'util';
-import { exec } from 'child_process';
+import { execFile } from 'child_process';
 import { generateSpeech } from './tts.js';
 import { createAvatarVideo } from './heygen.js';
 import { assembleLesson } from './assembler.js';
 import type { SegmentFile } from './assembler.js';
 import type { SegmentInput, LessonInput, PipelineResult, CostEstimate } from './types.js';
 
-const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
 
 /**
  * Estimate cost before processing (for budget cap).
@@ -167,9 +167,14 @@ async function createStaticVideo(
 
   // Create a simple video from audio with black background.
   // In production, this would be replaced by Remotion render.
-  await execAsync(
-    `ffmpeg -y -f lavfi -i color=c=black:s=1920x1080:d=${duration} -i "${audioPath}" -c:v libx264 -c:a aac -shortest "${outputPath}"`
-  );
+  await execFileAsync('ffmpeg', [
+    '-y',
+    '-f', 'lavfi', '-i', `color=c=black:s=1920x1080:d=${duration}`,
+    '-i', audioPath,
+    '-c:v', 'libx264', '-c:a', 'aac',
+    '-shortest',
+    outputPath,
+  ]);
 
   console.log(`  Static slide video created: ${outputPath}`);
 }

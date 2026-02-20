@@ -13,8 +13,11 @@ export function validateEnv(required: string[]): void {
 
 /** Create authenticated Supabase client */
 export function createSupabase() {
-  const url = process.env.SUPABASE_URL!;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_KEY!;
+  const url = process.env.SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_KEY;
+  if (!url || !key) {
+    throw new Error('Missing SUPABASE_URL or SUPABASE_KEY / SUPABASE_SERVICE_ROLE_KEY');
+  }
   return createClient(url, key);
 }
 
@@ -23,33 +26,33 @@ export function createClaude() {
   return new Anthropic();
 }
 
-/** Cost tracker for budget cap enforcement */
+/** Cost tracker for budget cap enforcement (uses integer cents to avoid float drift) */
 export class CostTracker {
-  private spent = 0;
-  private readonly budget: number;
+  private spentCents = 0;
+  private readonly budgetCents: number;
 
   constructor(budgetUsd: number) {
-    this.budget = budgetUsd;
+    this.budgetCents = Math.round(budgetUsd * 100);
   }
 
-  add(cost: number): void {
-    this.spent += cost;
+  add(costUsd: number): void {
+    this.spentCents += Math.round(costUsd * 10000);  // Track in hundredths of a cent
   }
 
   get total(): number {
-    return this.spent;
+    return this.spentCents / 10000;
   }
 
   get remaining(): number {
-    return Math.max(0, this.budget - this.spent);
+    return Math.max(0, (this.budgetCents * 100 - this.spentCents) / 10000);
   }
 
   get isOverBudget(): boolean {
-    return this.spent >= this.budget;
+    return this.spentCents >= this.budgetCents * 100;
   }
 
   toString(): string {
-    return `$${this.spent.toFixed(4)} / $${this.budget.toFixed(2)}`;
+    return `$${this.total.toFixed(4)} / $${(this.budgetCents / 100).toFixed(2)}`;
   }
 }
 
@@ -126,6 +129,27 @@ export function handleError(error: unknown): never {
     console.error(`\n❌ Unknown error:`, error);
   }
   process.exit(1);
+}
+
+/**
+ * Setup graceful shutdown handler for SIGINT (Ctrl+C).
+ * Prints a summary message and exits cleanly.
+ */
+export function setupGracefulShutdown(getStatus: () => string): void {
+  let shuttingDown = false;
+  const handler = () => {
+    if (shuttingDown) {
+      console.log('\n⚡ Force exit.');
+      process.exit(1);
+    }
+    shuttingDown = true;
+    console.log('\n\n🛑 Interrupted (Ctrl+C). Shutting down gracefully...');
+    console.log(getStatus());
+    console.log('Incomplete work can be resumed with --start-from.');
+    process.exit(130);
+  };
+  process.on('SIGINT', handler);
+  process.on('SIGTERM', handler);
 }
 
 /** Circuit breaker: tracks consecutive failures */

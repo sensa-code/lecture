@@ -6,10 +6,11 @@ import type { LessonInfo } from '../types/lesson.js';
  * SSOT: batch scripts must import this function.
  */
 export function buildLessonUserPrompt(info: LessonInfo): string {
+  const courseId = info.course_id ?? 'unknown-course';
   return `Please write a complete single-lesson script for the following course information.
 
 Course Information:
-- course_id: "vet-comm-001"
+- course_id: "${courseId}"
 - lesson_id: "${info.lesson_id}"
 - Course Title: "${info.title}"
 - Key Topics: ${JSON.stringify(info.key_topics)}

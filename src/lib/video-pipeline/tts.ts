@@ -1,5 +1,6 @@
 // ElevenLabs TTS module (F-12: alignment API for precise SRT)
 import type { TTSWorkResult } from './types.js';
+import { estimateDuration } from '../build-lesson-prompt.js';
 
 const ELEVENLABS_API_URL = 'https://api.elevenlabs.io/v1';
 const COST_PER_CHARACTER = 0.00003; // ~$0.03/1000 chars
@@ -32,7 +33,7 @@ export async function generateSpeech(
       }
 
       const audioBuffer = Buffer.from(await response.arrayBuffer());
-      const audioDuration = estimateAudioDuration(text);
+      const audioDuration = estimateDuration(text);
       const srtContent = await generateSRTWithAlignment(text, audioBuffer, audioDuration);
       const cost = text.length * COST_PER_CHARACTER;
 
@@ -45,11 +46,6 @@ export async function generateSpeech(
     }
   }
   throw new Error('unreachable');
-}
-
-function estimateAudioDuration(text: string): number {
-  const charCount = text.replace(/\s/g, '').length;
-  return Math.round(charCount / 3.5);
 }
 
 /**

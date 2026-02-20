@@ -56,4 +56,6 @@ export interface LessonInfo {
   duration_target_minutes: number;
   case_scenario: string;
   chapter_id: string;
+  /** Course ID — passed from syllabus or CLI; used in prompt generation */
+  course_id?: string;
 }

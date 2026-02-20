@@ -3,10 +3,26 @@ dist/
 output/
 .env
 .env.local
-*.js
-*.d.ts
-*.js.map
-*.d.ts.map
+
+# TypeScript build artifacts (only in src/ and scripts/)
+src/**/*.js
+src/**/*.d.ts
+src/**/*.js.map
+src/**/*.d.ts.map
+scripts/**/*.js
+scripts/**/*.d.ts
+scripts/**/*.js.map
+scripts/**/*.d.ts.map
+
+# Keep config files
 !vitest.config.ts
+
+# Media files (should not be committed)
+*.mp4
+*.mp3
+*.wav
+*.srt
+
+# OS files
 .DS_Store
 nul
